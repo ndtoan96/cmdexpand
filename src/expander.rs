@@ -22,7 +22,7 @@ enum QuoteChar {
 impl<'a> Expander<'a> {
     pub fn new(cmd: &'a str) -> Self {
         Self {
-            cmd_str: cmd,
+            cmd_str: cmd.as_ref(),
             ..Default::default()
         }
     }
@@ -40,9 +40,11 @@ impl<'a> Expander<'a> {
         self
     }
 
-    pub fn add_args(mut self, args: &[&'a str]) -> Self {
-        for &arg in args {
-            self.args.push(arg);
+    pub fn add_args<T>(mut self, args: &'a [T]) -> Self 
+    where T: AsRef<str>
+    {
+        for arg in args {
+            self.args.push(arg.as_ref());
         }
         self
     }
