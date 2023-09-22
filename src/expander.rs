@@ -131,13 +131,15 @@ mod tests {
 
     #[test]
     fn test_env_context() {
-        assert_eq!(
-            Expander::new("%EDITOR% somefile")
-                .add_context(&env_context)
-                .expand()
-                .unwrap(),
-            "hx somefile"
-        );
+        if let Ok(value) = std::env::var("EDITOR") {
+            assert_eq!(
+                Expander::new("%EDITOR% somefile")
+                    .add_context(&env_context)
+                    .expand()
+                    .unwrap(),
+                format!("{value} somefile")
+            );
+        }
     }
 
     #[test]
