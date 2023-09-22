@@ -8,6 +8,8 @@ pub struct Expander<'a> {
     cmd_str: &'a str,
     contexts: Vec<&'a dyn Fn(&str) -> Option<String>>,
     args: Vec<&'a str>,
+    no_context: bool,
+    no_positional_args: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -45,6 +47,16 @@ impl<'a> Expander<'a> {
         self
     }
 
+    pub fn disable_context(mut self, yes: bool) -> Self {
+        self.no_context = yes;
+        self
+    }
+
+    pub fn disable_positional_aruguments(mut self, yes: bool) -> Self {
+        self.no_positional_args = yes;
+        self
+    }
+
     pub fn expand(&self) -> Result<String, CmdExpandError> {
         let parts = parse_command(self.cmd_str)?;
         let mut expanded_cmd = String::new();
@@ -76,32 +88,51 @@ impl<'a> Expander<'a> {
         for part in parts {
             match part {
                 ArgumentPart::PositionalPlaceHolder(i) => {
-                    let content: &str = self.args.get(i - 1).map(|s| *s).unwrap_or_default();
-                    let replace_text = Expander::process_placeholder_content(content, quote_char);
-                    expanded_arg.push_str(&replace_text);
+                    if self.no_positional_args {
+                        expanded_arg.push_str(&format!("%{i}"));
+                    } else {
+                        let content: &str = self.args.get(i - 1).map(|s| *s).unwrap_or_default();
+                        let replace_text =
+                            Expander::process_placeholder_content(content, quote_char);
+                        expanded_arg.push_str(&replace_text);
+                    }
                 }
                 ArgumentPart::VarPlaceHolder(var) => {
-                    for &context in self.contexts.iter() {
-                        if let Some(value) = context(var) {
-                            let replace_text =
-                                Expander::process_placeholder_content(&value, quote_char);
-                            expanded_arg.push_str(&replace_text);
-                            break;
+                    if self.no_context {
+                        expanded_arg.push_str(&format!("%{var}%"));
+                    } else {
+                        for &context in self.contexts.iter() {
+                            if let Some(value) = context(var) {
+                                let replace_text =
+                                    Expander::process_placeholder_content(&value, quote_char);
+                                expanded_arg.push_str(&replace_text);
+                                break;
+                            }
                         }
                     }
                 }
                 ArgumentPart::Other(s) => expanded_arg.push_str(s),
                 ArgumentPart::StarSymbolArgument => {
-                    let one_arg = self.args.join(" ");
-                    let replace_text = Expander::process_placeholder_content(&one_arg, quote_char);
-                    expanded_arg.push_str(&replace_text);
+                    if self.no_positional_args {
+                        expanded_arg.push_str("%*")
+                    } else {
+                        let one_arg = self.args.join(" ");
+                        let replace_text =
+                            Expander::process_placeholder_content(&one_arg, quote_char);
+                        expanded_arg.push_str(&replace_text);
+                    }
                 }
                 ArgumentPart::AtSymbolArgument => {
-                    for (i, &arg) in self.args.iter().enumerate() {
-                        let replace_text = Expander::process_placeholder_content(arg, quote_char);
-                        expanded_arg.push_str(&replace_text);
-                        if i + 1 != self.args.len() {
-                            expanded_arg.push(' ');
+                    if self.no_positional_args {
+                        expanded_arg.push_str("%@")
+                    } else {
+                        for (i, &arg) in self.args.iter().enumerate() {
+                            let replace_text =
+                                Expander::process_placeholder_content(arg, quote_char);
+                            expanded_arg.push_str(&replace_text);
+                            if i + 1 != self.args.len() {
+                                expanded_arg.push(' ');
+                            }
                         }
                     }
                 }
