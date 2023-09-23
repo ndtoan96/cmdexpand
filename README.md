@@ -1,4 +1,4 @@
-![rust workflow](https://github.com/github/docs/actions/workflows/rust.yml/badge.svg)
+![rust workflow](https://github.com/ndtoan96/cmdexpand/actions/workflows/rust.yml/badge.svg)
 
 # Introduction
 
