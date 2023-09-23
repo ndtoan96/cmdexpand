@@ -1,5 +1,5 @@
 use crate::{
-    parser::{parse_argument, parse_command, ArgumentPart},
+    parser::{parse_argument, parse_command, ArgumentPart, CommandPart},
     CmdExpandError,
 };
 
@@ -65,19 +65,16 @@ impl<'a> Expander<'a> {
         let mut expanded_cmd = String::new();
         for part in parts {
             match part {
-                crate::parser::CommandPart::Space(s) => expanded_cmd.push_str(s),
-                crate::parser::CommandPart::Command(s) => {
-                    expanded_cmd.push_str(&self.expand_argument(s)?);
-                }
-                crate::parser::CommandPart::Argument(s) => {
-                    expanded_cmd.push_str(&self.expand_argument(s)?);
+                CommandPart::Space(s) => expanded_cmd.push_str(s),
+                CommandPart::Text(s) => {
+                    expanded_cmd.push_str(&self.expand_text(s)?);
                 }
             }
         }
         Ok(expanded_cmd)
     }
 
-    fn expand_argument(&self, arg: &str) -> Result<String, CmdExpandError> {
+    fn expand_text(&self, arg: &str) -> Result<String, CmdExpandError> {
         let quote_char = if arg.starts_with("'") {
             QuoteChar::SingleQuote
         } else if arg.starts_with("\"") {
@@ -95,8 +92,7 @@ impl<'a> Expander<'a> {
                         expanded_arg.push_str(&format!("%{i}"));
                     } else {
                         let content: &str = self.args.get(i - 1).map(|s| *s).unwrap_or_default();
-                        let replace_text =
-                            Expander::process_placeholder_content(content, quote_char);
+                        let replace_text = Expander::preprocess_content(content, quote_char);
                         expanded_arg.push_str(&replace_text);
                     }
                 }
@@ -106,8 +102,7 @@ impl<'a> Expander<'a> {
                     } else {
                         for &context in self.contexts.iter() {
                             if let Some(value) = context(var) {
-                                let replace_text =
-                                    Expander::process_placeholder_content(&value, quote_char);
+                                let replace_text = Expander::preprocess_content(&value, quote_char);
                                 expanded_arg.push_str(&replace_text);
                                 break;
                             }
@@ -120,8 +115,7 @@ impl<'a> Expander<'a> {
                         expanded_arg.push_str("%*")
                     } else {
                         let one_arg = self.args.join(" ");
-                        let replace_text =
-                            Expander::process_placeholder_content(&one_arg, quote_char);
+                        let replace_text = Expander::preprocess_content(&one_arg, quote_char);
                         expanded_arg.push_str(&replace_text);
                     }
                 }
@@ -130,8 +124,7 @@ impl<'a> Expander<'a> {
                         expanded_arg.push_str("%@")
                     } else {
                         for (i, &arg) in self.args.iter().enumerate() {
-                            let replace_text =
-                                Expander::process_placeholder_content(arg, quote_char);
+                            let replace_text = Expander::preprocess_content(arg, quote_char);
                             expanded_arg.push_str(&replace_text);
                             if i + 1 != self.args.len() {
                                 expanded_arg.push(' ');
@@ -144,7 +137,7 @@ impl<'a> Expander<'a> {
         Ok(expanded_arg)
     }
 
-    fn process_placeholder_content(content: &str, surrounding: QuoteChar) -> String {
+    fn preprocess_content(content: &str, surrounding: QuoteChar) -> String {
         let inner_space = content.chars().any(|c| c.is_whitespace());
         match (surrounding, inner_space) {
             (QuoteChar::None, true) => format!("\"{}\"", content.replace("\"", "\\\"")),

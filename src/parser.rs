@@ -11,8 +11,7 @@ use crate::CmdExpandError;
 #[derive(Debug, PartialEq)]
 pub(crate) enum CommandPart<'a> {
     Space(&'a str),
-    Command(&'a str),
-    Argument(&'a str),
+    Text(&'a str),
 }
 
 pub(crate) enum ArgumentPart<'a> {
@@ -59,10 +58,10 @@ pub(crate) fn parse_command(input: &str) -> Result<Vec<CommandPart>, CmdExpandEr
     if !leading_space.is_empty() {
         parts.push(CommandPart::Space(leading_space));
     }
-    parts.push(CommandPart::Command(command));
+    parts.push(CommandPart::Text(command));
     for (space, arg) in args {
         parts.push(CommandPart::Space(space));
-        parts.push(CommandPart::Argument(arg));
+        parts.push(CommandPart::Text(arg));
     }
     if !trailing_space.is_empty() {
         parts.push(CommandPart::Space(trailing_space));
