@@ -103,17 +103,17 @@ fn variable_placeholder(input: &str) -> IResult<&str, ArgumentPart> {
 }
 
 fn other(input: &str) -> IResult<&str, ArgumentPart> {
-    let (input, output) = is_not("%")(input)?;
+    let (input, output) = alt((tag("\\%"), is_not("%")))(input)?;
     Ok((input, ArgumentPart::Other(output)))
 }
 
 pub(crate) fn parse_argument(input: &str) -> Result<Vec<ArgumentPart>, CmdExpandError> {
     let (_, parts) = many0(alt((
+        other,
         star_symbol_argument,
         at_symbol_argument,
         positional_placeholder,
         variable_placeholder,
-        other,
     )))(input)
     .map_err(|_| CmdExpandError::ArgParseError(input.to_string()))?;
     Ok(parts)

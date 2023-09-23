@@ -40,8 +40,9 @@ impl<'a> Expander<'a> {
         self
     }
 
-    pub fn add_args<T>(mut self, args: &'a [T]) -> Self 
-    where T: AsRef<str>
+    pub fn add_args<T>(mut self, args: &'a [T]) -> Self
+    where
+        T: AsRef<str>,
     {
         for arg in args {
             self.args.push(arg.as_ref());
@@ -238,6 +239,14 @@ mod tests {
                 .expand()
                 .unwrap(),
             r#"cmd abc "def ghk""#
+        );
+        assert_eq!(
+            Expander::new("cmd \\%@")
+                .add_arg("abc")
+                .add_arg("def ghk")
+                .expand()
+                .unwrap(),
+            r#"cmd \%@"#
         );
     }
 }
