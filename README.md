@@ -1,3 +1,7 @@
+![rust workflow](https://github.com/github/docs/actions/workflows/rust.yml/badge.svg)
+
+# Introduction
+
 This library performs batch-like expansions in strings, that is, to expand `%VAR%` into their values inside some context. It's like a Windows version of [shellexpand](https://crates.io/crates/shellexpand).
 
 Aside from context variables, it can also expands number arguments (e.g `%1`, `%*`) syntax with a list of arguments provided by user.
