@@ -1,6 +1,8 @@
 use nom::branch::alt;
 use nom::bytes::complete::{is_not, tag, take_while1};
-use nom::character::complete::{alpha1, alphanumeric0, char, digit0, one_of, space0, space1};
+use nom::character::complete::{
+    alpha1, alphanumeric0, anychar, char, digit0, digit1, one_of, space0, space1,
+};
 use nom::combinator::{eof, recognize};
 use nom::multi::{many0, many1};
 use nom::sequence::{pair, preceded, tuple};
@@ -14,41 +16,45 @@ pub(crate) enum CommandPart<'a> {
     Text(&'a str),
 }
 
-pub(crate) enum ArgumentPart<'a> {
-    StarSymbolArgument,
-    AtSymbolArgument,
-    PositionalPlaceHolder(usize),
+pub(crate) enum TextPart<'a> {
+    StarPlaceHolder,
+    AtPlaceHolder,
+    NumberPlaceHolder(usize),
     VarPlaceHolder(&'a str),
-    Other(&'a str),
+    NormalText(&'a str),
 }
 
-fn double_quote_argument(input: &str) -> IResult<&str, &str> {
-    recognize(delimited(char('"'), is_not("\""), char('"')))(input)
-}
-
-fn single_quote_argument(input: &str) -> IResult<&str, &str> {
-    recognize(delimited(char('\''), is_not("'"), char('\'')))(input)
-}
-
-fn no_quote_argument(input: &str) -> IResult<&str, &str> {
-    take_while1(|c: char| !c.is_whitespace())(input)
+fn escaped_char(input: &str) -> IResult<&str, &str> {
+    recognize(pair(char('\\'), anychar))(input)
 }
 
 pub(crate) fn parse_command(input: &str) -> Result<Vec<CommandPart>, CmdExpandError> {
+    fn double_quote_text(input: &str) -> IResult<&str, &str> {
+        recognize(delimited(
+            char('"'),
+            many0(alt((is_not("\"\\"), escaped_char))),
+            char('"'),
+        ))(input)
+    }
+
+    fn single_quote_text(input: &str) -> IResult<&str, &str> {
+        recognize(delimited(
+            char('\''),
+            many0(alt((is_not("'"), escaped_char))),
+            char('\''),
+        ))(input)
+    }
+
+    fn no_quote_text(input: &str) -> IResult<&str, &str> {
+        take_while1(|c: char| !c.is_whitespace())(input)
+    }
+
     let (_, (leading_space, command, args, trailing_space, _)) = tuple((
         space0,
-        alt((
-            double_quote_argument,
-            single_quote_argument,
-            no_quote_argument,
-        )),
+        alt((double_quote_text, single_quote_text, no_quote_text)),
         many1(tuple((
             space1,
-            alt((
-                double_quote_argument,
-                single_quote_argument,
-                no_quote_argument,
-            )),
+            alt((double_quote_text, single_quote_text, no_quote_text)),
         ))),
         space0,
         eof,
@@ -69,49 +75,45 @@ pub(crate) fn parse_command(input: &str) -> Result<Vec<CommandPart>, CmdExpandEr
     Ok(parts)
 }
 
-fn number_greater_than_zero(input: &str) -> IResult<&str, &str> {
-    recognize(pair(one_of("123456789"), digit0))(input)
-}
+pub(crate) fn parse_text(input: &str) -> Result<Vec<TextPart>, CmdExpandError> {
+    fn star_placeholder(input: &str) -> IResult<&str, TextPart> {
+        let (input, _) = tag("%*")(input)?;
+        Ok((input, TextPart::StarPlaceHolder))
+    }
 
-fn star_symbol_argument(input: &str) -> IResult<&str, ArgumentPart> {
-    let (input, _) = tag("%*")(input)?;
-    Ok((input, ArgumentPart::StarSymbolArgument))
-}
+    fn at_placeholder(input: &str) -> IResult<&str, TextPart> {
+        let (input, _) = tag("%@")(input)?;
+        Ok((input, TextPart::AtPlaceHolder))
+    }
 
-fn at_symbol_argument(input: &str) -> IResult<&str, ArgumentPart> {
-    let (input, _) = tag("%@")(input)?;
-    Ok((input, ArgumentPart::AtSymbolArgument))
-}
+    fn number_placeholder(input: &str) -> IResult<&str, TextPart> {
+        let (input, output) = preceded(char('%'), digit1)(input)?;
+        let num: usize = output.parse().unwrap();
+        Ok((input, TextPart::NumberPlaceHolder(num)))
+    }
 
-fn positional_placeholder(input: &str) -> IResult<&str, ArgumentPart> {
-    let (input, output) = preceded(char('%'), number_greater_than_zero)(input)?;
-    let num: usize = output.parse().unwrap();
-    Ok((input, ArgumentPart::PositionalPlaceHolder(num)))
-}
+    fn variable_name(input: &str) -> IResult<&str, &str> {
+        recognize(pair(
+            alt((alpha1, tag("_"))),
+            alt((alphanumeric0, tag("_"))),
+        ))(input)
+    }
 
-fn variable_name(input: &str) -> IResult<&str, &str> {
-    recognize(pair(
-        alt((alpha1, tag("_"))),
-        alt((alphanumeric0, tag("_"))),
-    ))(input)
-}
+    fn variable_placeholder(input: &str) -> IResult<&str, TextPart> {
+        let (input, output) = delimited(char('%'), variable_name, char('%'))(input)?;
+        Ok((input, TextPart::VarPlaceHolder(output)))
+    }
 
-fn variable_placeholder(input: &str) -> IResult<&str, ArgumentPart> {
-    let (input, output) = delimited(char('%'), variable_name, char('%'))(input)?;
-    Ok((input, ArgumentPart::VarPlaceHolder(output)))
-}
+    fn normal_text(input: &str) -> IResult<&str, TextPart> {
+        let (input, output) = recognize(many1(alt((escaped_char, is_not("\\%")))))(input)?;
+        Ok((input, TextPart::NormalText(output)))
+    }
 
-fn other(input: &str) -> IResult<&str, ArgumentPart> {
-    let (input, output) = alt((tag("\\%"), is_not("%")))(input)?;
-    Ok((input, ArgumentPart::Other(output)))
-}
-
-pub(crate) fn parse_argument(input: &str) -> Result<Vec<ArgumentPart>, CmdExpandError> {
     let (_, parts) = many0(alt((
-        other,
-        star_symbol_argument,
-        at_symbol_argument,
-        positional_placeholder,
+        normal_text,
+        star_placeholder,
+        at_placeholder,
+        number_placeholder,
         variable_placeholder,
     )))(input)
     .map_err(|_| CmdExpandError::ArgParseError(input.to_string()))?;

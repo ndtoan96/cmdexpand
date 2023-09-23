@@ -1,5 +1,5 @@
 use crate::{
-    parser::{parse_argument, parse_command, ArgumentPart, CommandPart},
+    parser::{parse_command, parse_text, CommandPart, TextPart},
     CmdExpandError,
 };
 
@@ -83,11 +83,11 @@ impl<'a> Expander<'a> {
             QuoteChar::None
         };
 
-        let parts = parse_argument(arg)?;
+        let parts = parse_text(arg)?;
         let mut expanded_arg = String::new();
         for part in parts {
             match part {
-                ArgumentPart::PositionalPlaceHolder(i) => {
+                TextPart::NumberPlaceHolder(i) => {
                     if self.no_positional_args {
                         expanded_arg.push_str(&format!("%{i}"));
                     } else {
@@ -96,7 +96,7 @@ impl<'a> Expander<'a> {
                         expanded_arg.push_str(&replace_text);
                     }
                 }
-                ArgumentPart::VarPlaceHolder(var) => {
+                TextPart::VarPlaceHolder(var) => {
                     if self.no_context {
                         expanded_arg.push_str(&format!("%{var}%"));
                     } else {
@@ -109,8 +109,8 @@ impl<'a> Expander<'a> {
                         }
                     }
                 }
-                ArgumentPart::Other(s) => expanded_arg.push_str(s),
-                ArgumentPart::StarSymbolArgument => {
+                TextPart::NormalText(s) => expanded_arg.push_str(s),
+                TextPart::StarPlaceHolder => {
                     if self.no_positional_args {
                         expanded_arg.push_str("%*")
                     } else {
@@ -119,7 +119,7 @@ impl<'a> Expander<'a> {
                         expanded_arg.push_str(&replace_text);
                     }
                 }
-                ArgumentPart::AtSymbolArgument => {
+                TextPart::AtPlaceHolder => {
                     if self.no_positional_args {
                         expanded_arg.push_str("%@")
                     } else {
@@ -234,12 +234,16 @@ mod tests {
             r#"cmd abc "def ghk""#
         );
         assert_eq!(
-            Expander::new("cmd \\%@")
+            Expander::new("cmd a\\%@")
                 .add_arg("abc")
                 .add_arg("def ghk")
                 .expand()
                 .unwrap(),
-            r#"cmd \%@"#
+            r#"cmd a\%@"#
+        );
+        assert_eq!(
+            Expander::new(r#"cmd "Hello \"world"#).expand().unwrap(),
+            r#"cmd "Hello \"world"#
         );
     }
 }
