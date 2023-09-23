@@ -1,10 +1,14 @@
 [package]
 name = "cmdexpand"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
+authors = ["Nguyen Duc Toan <ntoan96@gmail.com>"]
 description = "This crate performs batch-like expansions"
+readme = "README.md"
 license-file = "LICENSE"
 repository = "https://github.com/ndtoan96/cmdexpand"
+keywords = ["variables", "string", "shell", "batch", "cmd"]
+categories = ["template-engine"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
