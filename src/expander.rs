@@ -5,6 +5,7 @@ use crate::{
 
 type Context = dyn Fn(&str) -> Option<String>;
 
+/// Configuration for expanding command
 #[derive(Default)]
 pub struct Expander<'a> {
     cmd_str: &'a str,
@@ -22,6 +23,7 @@ enum QuoteChar {
 }
 
 impl<'a> Expander<'a> {
+    /// Create a new [Expander](Expander).
     pub fn new(cmd: &'a str) -> Self {
         Self {
             cmd_str: cmd,
@@ -29,16 +31,20 @@ impl<'a> Expander<'a> {
         }
     }
 
+    /// Add a context. User can add multiple contexts by calling this function multiple times.
+    /// If a variable exists in more than one context, the first found will be expanded.
     pub fn add_context(mut self, context: &'a Context) -> Self {
         self.contexts.push(context);
         self
     }
 
+    /// Add an argument.
     pub fn add_arg(mut self, arg: &'a str) -> Self {
         self.args.push(arg);
         self
     }
 
+    /// Add a list of arguments.
     pub fn add_args<T>(mut self, args: &'a [T]) -> Self
     where
         T: AsRef<str>,
@@ -49,16 +55,37 @@ impl<'a> Expander<'a> {
         self
     }
 
+    /// Does not expand context variables.
+    /// ```rust
+    /// use cmdexpand::Expander;
+    /// 
+    /// // because `%HOME%` does not exist, it will be expanded to empty string
+    /// assert_eq!(Expander::new("echo %HOME%").expand().unwrap(), "echo ");
+    /// 
+    /// // with `disable_context`, `%HOME%` will stay the same
+    /// assert_eq!(Expander::new("echo %HOME%").disable_context(true).expand().unwrap(), "echo %HOME%");
+    /// ``` 
     pub fn disable_context(mut self, yes: bool) -> Self {
         self.no_context = yes;
         self
     }
 
+    /// Does not expand positional arguments.
+    /// ```rust
+    /// use cmdexpand::Expander;
+    /// 
+    /// // because `%1` does not exist, it will be expanded to empty string
+    /// assert_eq!(Expander::new("echo %1").expand().unwrap(), "echo ");
+    /// 
+    /// // with `disable_positional_aruguments`, `%1` will stay the same
+    /// assert_eq!(Expander::new("echo %1").disable_positional_aruguments(true).expand().unwrap(), "echo %1");
+    /// ```
     pub fn disable_positional_aruguments(mut self, yes: bool) -> Self {
         self.no_positional_args = yes;
         self
     }
 
+    /// Expand the command string
     pub fn expand(&self) -> Result<String, CmdExpandError> {
         let parts = parse_command(self.cmd_str)?;
         let mut expanded_cmd = String::new();
@@ -147,6 +174,7 @@ impl<'a> Expander<'a> {
     }
 }
 
+/// Context that contains environment variables
 pub fn env_context(var: &str) -> Option<String> {
     std::env::var(var).ok()
 }

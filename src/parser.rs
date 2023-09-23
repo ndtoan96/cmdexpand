@@ -120,7 +120,7 @@ pub(crate) fn parse_text(input: &str) -> Result<Vec<TextPart>, CmdExpandError> {
         number_placeholder,
         variable_placeholder,
     )))(input)
-    .map_err(|_| CmdExpandError::ArgParseError(input.to_string()))?;
+    .map_err(|_| CmdExpandError::TextParseError(input.to_string()))?;
     Ok(parts)
 }
 
