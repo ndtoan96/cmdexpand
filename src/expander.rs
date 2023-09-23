@@ -3,10 +3,12 @@ use crate::{
     CmdExpandError,
 };
 
+type Context = dyn Fn(&str) -> Option<String>;
+
 #[derive(Default)]
 pub struct Expander<'a> {
     cmd_str: &'a str,
-    contexts: Vec<&'a dyn Fn(&str) -> Option<String>>,
+    contexts: Vec<&'a Context>,
     args: Vec<&'a str>,
     no_context: bool,
     no_positional_args: bool,
@@ -22,15 +24,12 @@ enum QuoteChar {
 impl<'a> Expander<'a> {
     pub fn new(cmd: &'a str) -> Self {
         Self {
-            cmd_str: cmd.as_ref(),
+            cmd_str: cmd,
             ..Default::default()
         }
     }
 
-    pub fn add_context<C>(mut self, context: &'a C) -> Self
-    where
-        C: Fn(&str) -> Option<String>,
-    {
+    pub fn add_context(mut self, context: &'a Context) -> Self {
         self.contexts.push(context);
         self
     }
@@ -75,9 +74,9 @@ impl<'a> Expander<'a> {
     }
 
     fn expand_text(&self, arg: &str) -> Result<String, CmdExpandError> {
-        let quote_char = if arg.starts_with("'") {
+        let quote_char = if arg.starts_with('\'') {
             QuoteChar::SingleQuote
-        } else if arg.starts_with("\"") {
+        } else if arg.starts_with('"') {
             QuoteChar::DoubleQuote
         } else {
             QuoteChar::None
@@ -90,8 +89,8 @@ impl<'a> Expander<'a> {
                 TextPart::NumberPlaceHolder(i) => {
                     if self.no_positional_args {
                         expanded_arg.push_str(&format!("%{i}"));
-                    } else {
-                        let content: &str = self.args.get(i - 1).map(|s| *s).unwrap_or_default();
+                    } else if i > 0 {
+                        let content: &str = self.args.get(i - 1).copied().unwrap_or_default();
                         let replace_text = Expander::preprocess_content(content, quote_char);
                         expanded_arg.push_str(&replace_text);
                     }
@@ -140,10 +139,10 @@ impl<'a> Expander<'a> {
     fn preprocess_content(content: &str, surrounding: QuoteChar) -> String {
         let inner_space = content.chars().any(|c| c.is_whitespace());
         match (surrounding, inner_space) {
-            (QuoteChar::None, true) => format!("\"{}\"", content.replace("\"", "\\\"")),
+            (QuoteChar::None, true) => format!("\"{}\"", content.replace('"', "\\\"")),
             (QuoteChar::None, false) => content.to_string(),
-            (QuoteChar::SingleQuote, _) => content.replace("'", "\\'").to_string(),
-            (QuoteChar::DoubleQuote, _) => content.replace("\"", "\\\"").to_string(),
+            (QuoteChar::SingleQuote, _) => content.replace('\'', "\\'").to_string(),
+            (QuoteChar::DoubleQuote, _) => content.replace('"', "\\\"").to_string(),
         }
     }
 }

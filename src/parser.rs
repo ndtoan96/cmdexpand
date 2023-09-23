@@ -1,7 +1,7 @@
 use nom::branch::alt;
 use nom::bytes::complete::{is_not, tag, take_while1};
 use nom::character::complete::{
-    alpha1, alphanumeric0, anychar, char, digit0, digit1, one_of, space0, space1,
+    alpha1, alphanumeric0, anychar, char, digit0, one_of, space0, space1,
 };
 use nom::combinator::{eof, recognize};
 use nom::multi::{many0, many1};
@@ -86,8 +86,12 @@ pub(crate) fn parse_text(input: &str) -> Result<Vec<TextPart>, CmdExpandError> {
         Ok((input, TextPart::AtPlaceHolder))
     }
 
+    fn non_leading_zero_number(input: &str) -> IResult<&str, &str> {
+        alt((tag("0"), recognize(pair(one_of("123456789"), digit0))))(input)
+    }
+
     fn number_placeholder(input: &str) -> IResult<&str, TextPart> {
-        let (input, output) = preceded(char('%'), digit1)(input)?;
+        let (input, output) = preceded(char('%'), non_leading_zero_number)(input)?;
         let num: usize = output.parse().unwrap();
         Ok((input, TextPart::NumberPlaceHolder(num)))
     }
