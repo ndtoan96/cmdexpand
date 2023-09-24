@@ -3,7 +3,7 @@ use crate::{
     CmdExpandError,
 };
 
-type Context = dyn Fn(&str) -> Option<String>;
+pub type Context = dyn Fn(&str) -> Option<String>;
 
 /// Configuration for expanding command
 #[derive(Default)]
@@ -58,13 +58,13 @@ impl<'a> Expander<'a> {
     /// Does not expand context variables.
     /// ```rust
     /// use cmdexpand::Expander;
-    /// 
+    ///
     /// // because `%HOME%` does not exist, it will be expanded to empty string
     /// assert_eq!(Expander::new("echo %HOME%").expand().unwrap(), "echo ");
-    /// 
+    ///
     /// // with `disable_context`, `%HOME%` will stay the same
     /// assert_eq!(Expander::new("echo %HOME%").disable_context(true).expand().unwrap(), "echo %HOME%");
-    /// ``` 
+    /// ```
     pub fn disable_context(mut self, yes: bool) -> Self {
         self.no_context = yes;
         self
@@ -73,10 +73,10 @@ impl<'a> Expander<'a> {
     /// Does not expand positional arguments.
     /// ```rust
     /// use cmdexpand::Expander;
-    /// 
+    ///
     /// // because `%1` does not exist, it will be expanded to empty string
     /// assert_eq!(Expander::new("echo %1").expand().unwrap(), "echo ");
-    /// 
+    ///
     /// // with `disable_positional_aruguments`, `%1` will stay the same
     /// assert_eq!(Expander::new("echo %1").disable_positional_aruguments(true).expand().unwrap(), "echo %1");
     /// ```
@@ -271,6 +271,13 @@ mod tests {
         assert_eq!(
             Expander::new(r#"cmd "Hello \"world"#).expand().unwrap(),
             r#"cmd "Hello \"world"#
+        );
+        assert_eq!(
+            Expander::new(r#"  a "b \"%1\""  "#)
+                .add_args(&["c", "d"])
+                .expand()
+                .unwrap(),
+            r#"  a "b \"c\""  "#
         );
     }
 }

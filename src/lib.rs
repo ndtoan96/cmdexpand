@@ -28,19 +28,19 @@
 //! You can provide a list of arguments too.
 //! ```rust
 //! use cmdexpand::Expander;
-//! 
+//!
 //! // arguments start from 1. `%0` will always expand to empty string
 //! assert_eq!(Expander::new("del %1")
 //!             .add_args(&["a.txt", "b.txt"])
 //!             .expand()
 //!             .unwrap(), "del a.txt");
-//! 
+//!
 //! // `%*` behaves like `$*` on Linux
 //! assert_eq!(Expander::new("del %*")
 //!             .add_args(&["a.txt", "b.txt"])
 //!             .expand()
 //!             .unwrap(), r#"del "a.txt b.txt""#);
-//! 
+//!
 //! // `%@` behaves like `$@` on Linux, even though technically there's no `%@` on Windows
 //! assert_eq!(Expander::new("del %@")
 //!             .add_args(&["a.txt", "b.txt"])
@@ -51,6 +51,7 @@ mod expander;
 mod parser;
 
 pub use expander::env_context;
+pub use expander::Context;
 pub use expander::Expander;
 use thiserror::Error;
 
