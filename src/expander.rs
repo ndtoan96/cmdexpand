@@ -325,6 +325,10 @@ cmd2 d "#
             " \n cmd abc "
         );
         assert_eq!(
+            Expander::new(" \n cmd abc \r\n").expand().unwrap(),
+            " \n cmd abc \r\n"
+        );
+        assert_eq!(
             Expander::new(" \r\n cmd \r\nabc ").expand().unwrap(),
             " \r\n cmd \r\nabc "
         );
