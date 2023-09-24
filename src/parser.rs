@@ -29,6 +29,10 @@ fn escaped_char(input: &str) -> IResult<&str, &str> {
 }
 
 pub(crate) fn parse_command(input: &str) -> Result<Vec<CommandPart>, CmdExpandError> {
+    if input.trim().is_empty() {
+        return Ok(vec![CommandPart::Space(input)]);
+    }
+
     fn double_quote_text(input: &str) -> IResult<&str, &str> {
         recognize(delimited(
             char('"'),
@@ -49,24 +53,19 @@ pub(crate) fn parse_command(input: &str) -> Result<Vec<CommandPart>, CmdExpandEr
         take_while1(|c: char| !c.is_whitespace())(input)
     }
 
-    fn one_line(input: &str) -> IResult<&str, (&str, &str, Vec<(&str, &str)>, &str, Option<&str>)> {
-        tuple((
+    fn one_line_cmd(input: &str) -> IResult<&str, Vec<CommandPart>> {
+        let (input, (leading_space, command, args, trailing_space, line_end)) = tuple((
             space0,
             alt((double_quote_text, single_quote_text, no_quote_text)),
-            many1(tuple((
+            many0(tuple((
                 space1,
                 alt((double_quote_text, single_quote_text, no_quote_text)),
             ))),
             space0,
             opt(line_ending),
-        ))(input)
-    }
+        ))(input)?;
 
-    let mut parts = Vec::new();
-    let (_, lines) = terminated(many1(one_line), eof)(input)
-        .map_err(|_| CmdExpandError::ParseCmdError(input.to_string()))?;
-    for line in lines {
-        let (leading_space, command, args, trailing_space, line_end) = line;
+        let mut parts = Vec::new();
         if !leading_space.is_empty() {
             parts.push(CommandPart::Space(leading_space));
         }
@@ -81,9 +80,17 @@ pub(crate) fn parse_command(input: &str) -> Result<Vec<CommandPart>, CmdExpandEr
         if let Some(le) = line_end {
             parts.push(CommandPart::Space(le));
         }
+        Ok((input, parts))
     }
 
-    Ok(parts)
+    fn empty_lines(input: &str) -> IResult<&str, Vec<CommandPart>> {
+        let (input, output) = recognize(many1(alt((space1, line_ending))))(input)?;
+        Ok((input, vec![CommandPart::Space(output)]))
+    }
+
+    let (_, lines) = terminated(many1(alt((one_line_cmd, empty_lines))), eof)(input)
+        .map_err(|_| CmdExpandError::ParseCmdError(input.to_string()))?;
+    Ok(lines.into_iter().flatten().collect())
 }
 
 pub(crate) fn parse_text(input: &str) -> Result<Vec<TextPart>, CmdExpandError> {

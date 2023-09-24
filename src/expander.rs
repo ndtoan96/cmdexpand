@@ -310,4 +310,23 @@ cmd2 d "#
   echo "cmd /C \"run something\"""#
         );
     }
+
+    #[test]
+    fn test_one_word() {
+        assert_eq!(Expander::new("cmd").expand().unwrap(), "cmd");
+    }
+
+    #[test]
+    fn test_empty_line() {
+        assert_eq!(Expander::new("").expand().unwrap(), "");
+        assert_eq!(Expander::new("  ").expand().unwrap(), "  ");
+        assert_eq!(
+            Expander::new(" \n cmd abc ").expand().unwrap(),
+            " \n cmd abc "
+        );
+        assert_eq!(
+            Expander::new(" \r\n cmd \r\nabc ").expand().unwrap(),
+            " \r\n cmd \r\nabc "
+        );
+    }
 }
