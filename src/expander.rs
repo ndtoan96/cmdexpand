@@ -113,13 +113,16 @@ impl<'a> Expander<'a> {
         let mut expanded_arg = String::new();
         for part in parts {
             match part {
-                TextPart::NumberPlaceHolder(i) => {
+                TextPart::NumberPlaceHolder(s) => {
                     if self.no_positional_args {
-                        expanded_arg.push_str(&format!("%{i}"));
-                    } else if i > 0 {
-                        let content: &str = self.args.get(i - 1).copied().unwrap_or_default();
-                        let replace_text = Expander::preprocess_content(content, quote_char);
-                        expanded_arg.push_str(&replace_text);
+                        expanded_arg.push_str(s);
+                    } else {
+                        let i: usize = s.parse().unwrap();
+                        if i > 0 {
+                            let content: &str = self.args.get(i - 1).copied().unwrap_or_default();
+                            let replace_text = Expander::preprocess_content(content, quote_char);
+                            expanded_arg.push_str(&replace_text);
+                        }
                     }
                 }
                 TextPart::VarPlaceHolder(var) => {
