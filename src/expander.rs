@@ -1,5 +1,5 @@
 use crate::{
-    parser::{parse_command, parse_text, CommandPart, TextPart},
+    parser::{parse_argument_number, parse_command, parse_text, CommandPart, TextPart},
     CmdExpandError,
 };
 
@@ -117,7 +117,7 @@ impl<'a> Expander<'a> {
                     if self.no_positional_args {
                         expanded_arg.push_str(s);
                     } else {
-                        let i: usize = s.parse().unwrap();
+                        let i: usize = parse_argument_number(s)?;
                         if i > 0 {
                             let content: &str = self.args.get(i - 1).copied().unwrap_or_default();
                             let replace_text = Expander::preprocess_content(content, quote_char);
@@ -281,6 +281,33 @@ mod tests {
                 .expand()
                 .unwrap(),
             r#"  a "b \"c\""  "#
+        );
+    }
+
+    #[test]
+    fn test_multiline() {
+        assert_eq!(
+            Expander::new(
+                r#"  a "b \"%1\"" 
+cmd2 %2 "#
+            )
+            .add_args(&["c", "d"])
+            .expand()
+            .unwrap(),
+            r#"  a "b \"c\"" 
+cmd2 d "#
+        );
+
+        assert_eq!(
+            Expander::new(
+                r#"echo %1
+  echo %1"#
+            )
+            .add_arg("cmd /C \"run something\"")
+            .expand()
+            .unwrap(),
+            r#"echo "cmd /C \"run something\""
+  echo "cmd /C \"run something\"""#
         );
     }
 }

@@ -58,7 +58,11 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum CmdExpandError {
     #[error("cannot parse command `{0}`")]
-    CmdParseError(String),
+    ParseCmdError(String),
     #[error("cannot parse argument `{0}`")]
-    TextParseError(String),
+    ParseTextError(String),
+    #[error("wrong argument format `{0}`")]
+    ParseArgumentError(String),
+    #[error(transparent)]
+    ParseIntError(#[from] std::num::ParseIntError),
 }
