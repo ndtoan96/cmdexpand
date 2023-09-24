@@ -63,6 +63,8 @@ pub enum CmdExpandError {
     ParseTextError(String),
     #[error("wrong argument format `{0}`")]
     ParseArgumentError(String),
+    #[error("wrong variable format `{0}`")]
+    ParseVariableError(String),
     #[error(transparent)]
     ParseIntError(#[from] std::num::ParseIntError),
 }

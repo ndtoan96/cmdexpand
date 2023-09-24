@@ -117,7 +117,7 @@ pub(crate) fn parse_text(input: &str) -> Result<Vec<TextPart>, CmdExpandError> {
     }
 
     fn variable_placeholder(input: &str) -> IResult<&str, TextPart> {
-        let (input, output) = delimited(char('%'), variable_name, char('%'))(input)?;
+        let (input, output) = recognize(tuple((char('%'), variable_name, char('%'))))(input)?;
         Ok((input, TextPart::VarPlaceHolder(output)))
     }
 
@@ -141,6 +141,13 @@ pub(crate) fn parse_argument_number(s: &str) -> Result<usize, CmdExpandError> {
     Ok(s.strip_prefix('%')
         .ok_or(CmdExpandError::ParseArgumentError(s.to_string()))?
         .parse()?)
+}
+
+pub(crate) fn parse_variable(s: &str) -> Result<&str, CmdExpandError> {
+    Ok(s.strip_prefix('%')
+        .ok_or(CmdExpandError::ParseVariableError(s.to_string()))?
+        .strip_suffix('%')
+        .ok_or(CmdExpandError::ParseVariableError(s.to_string()))?)
 }
 
 #[cfg(test)]

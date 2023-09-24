@@ -1,5 +1,5 @@
 use crate::{
-    parser::{parse_argument_number, parse_command, parse_text, CommandPart, TextPart},
+    parser::{parse_argument_number, parse_command, parse_text, CommandPart, TextPart, parse_variable},
     CmdExpandError,
 };
 
@@ -125,11 +125,12 @@ impl<'a> Expander<'a> {
                         }
                     }
                 }
-                TextPart::VarPlaceHolder(var) => {
+                TextPart::VarPlaceHolder(s) => {
                     if self.no_context {
-                        expanded_arg.push_str(&format!("%{var}%"));
+                        expanded_arg.push_str(s);
                     } else {
                         for &context in self.contexts.iter() {
+                            let var = parse_variable(s)?;
                             if let Some(value) = context(var) {
                                 let replace_text = Expander::preprocess_content(&value, quote_char);
                                 expanded_arg.push_str(&replace_text);
